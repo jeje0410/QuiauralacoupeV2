@@ -1,0 +1,3 @@
+Incription pour le classement par équipe
+insérer dans joueur_equipe(login idequipe) et dans descr_equipe (idequipe, nom de l'equipe avec le nombre de joueur)
+insérer dans le classement_equipe avec 0 points

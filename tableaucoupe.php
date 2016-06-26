@@ -1,0 +1,151 @@
+<h3> Coupe</h3>
+<?php
+
+$query="select type_tour,nom_tour,num_tour from coupe_tour order by type_tour desc";
+$link = get_mysql_link();
+$result = mysql_query($query, $link);
+if (!$result)
+	my_error($link, $query);
+$maxtour=0;
+$k=0;
+while ($row = mysql_fetch_array($result, MYSQL_NUM)) {
+	$tour[$k][0]=$row[0];
+	$tour[$k][1]=$row[1];
+	$k=$k+1;
+	$maxtour=$k;
+}
+if($maxtour>0){
+echo "<table class=\"tableauCoupe\" border='1'>";
+echo "<tr class=\"beige\"><td>Votre score pour passer le tour sera calcul&eacute; sur les matchs suivants</td><tr>";
+$query="select m.lib_match,m.dateM from parametres p, coupe_tour ct, coupe_tour_match ctm, `match` m where p.valeur = ct.num_tour and ctm.id_tour = ct.type_tour and m.idMatch = ctm.id_match and p.param=\"tourCoupeCourant\" order by m.dateM asc";
+$link = get_mysql_link();
+$result = mysql_query($query, $link);
+if (!$result)
+	my_error($link, $query);
+while ($row = mysql_fetch_array($result, MYSQL_NUM)) {
+	echo "<tr><td>".$row[0]." <> ".$row[1]."</td></tr>";
+}
+echo "</tr></table>";
+}
+
+echo "<table class=\"tableauCoupe\" border='1'>";
+echo "<tr class=\"beige\">";
+
+// pas de coupe pour le moment
+if($maxtour==0){
+	echo "<td>Le tirage au sort de la coupe sera effectu&eacute; prochainement<br>les premiers du classement seront exempts du premier tour et directement qualifi&eacute;s pour le tour suivant<br>un tour de coupe se fera sur quatre matchs cons&eacute;cutifs</td>";
+	echo "</tr>";
+}
+
+$i=1;
+$maxmatch=0;
+$tiraubutJ1="";
+$tiraubutJ2="";
+$nbcolonfusion=2;
+while ($i<=$maxtour){
+	$query1="SELECT j1.prenom, j1.nom, j2.prenom, j2.nom, j1.login, j2.login from  coupe_tour ct, joueurs j1, joueurs j2 RIGHT OUTER JOIN coupe_rencontre c ON j2.login = c.login2 where c.login1=j1.login and c.tour=ct.type_tour and ct.num_tour=".$i;
+	$link = get_mysql_link();
+	$result1 = mysql_query($query1, $link);
+	if (!$result1)
+		my_error($link, $query1);
+	$j=0;
+	while ($row1 = mysql_fetch_array($result1, MYSQL_NUM)) {
+		$queryJ1 = "SELECT sum( p.points_total ) FROM coupe_tour_match ctm, pari p WHERE ctm.id_tour =".$tour[$i-1][0]." AND p.idmatch = ctm.id_match AND p.login = '".$row1[4]."'";
+		$resultJ1 = mysql_query($queryJ1, $link);
+		if (!$resultJ1)
+			my_error($link, $queryJ1);
+		$pointsJ1=0;
+		while ($rowJ1 = mysql_fetch_array($resultJ1, MYSQL_NUM)) {
+			$pointsJ1=$rowJ1[0];
+		}
+		$queryJ2 = "SELECT sum( p.points_total ) FROM coupe_tour_match ctm, pari p WHERE ctm.id_tour =".$tour[$i-1][0]." AND p.idmatch = ctm.id_match AND p.login = '".$row1[5]."'";
+		$resultJ2 = mysql_query($queryJ2, $link);
+		if (!$resultJ1)
+			my_error($link, $queryJ2);
+		$pointsJ2=0;
+		while ($rowJ2 = mysql_fetch_array($resultJ2, MYSQL_NUM)) {
+			$pointsJ2=$rowJ2[0];
+		}
+		if ($pointsJ1==null){
+			$pointsJ1=0;
+		}
+		if ($pointsJ2==null){
+			$pointsJ2=0;
+		}
+		//si score identique alors il y a eu des tirs au but il faut chercher le résultat
+		if($pointsJ1==$pointsJ2){
+			$result = executerRequete("select tiraubutJ1,tiraubutJ2 from coupe_rencontre where login1='".$row1[4]."' and login2='".$row1[5]."'");
+			while ($row = mysql_fetch_array($result, MYSQL_NUM)) {
+				$tiraubutJ1 = "<br>(".$row[0].")";
+				$tiraubutJ2 = "<br>(".$row[1].")";
+			}
+		}
+		$x=puissance(2,($i-1));
+		$indice = $j*$x;
+		
+		if ($pointsJ1>$pointsJ2){
+			$matchJoueursJ1[$i][$indice]="<span class='gagnant'>".$row1[0]." ".$row1[1]."<br>".$pointsJ1."".$tiraubutJ1."</span>";
+			$matchJoueursJ2[$i][$indice]="<span class='perdant'>".$row1[2]." ".$row1[3]."<br>".$pointsJ2."".$tiraubutJ2."</span>";
+		} else if ($pointsJ1<$pointsJ2) {
+			$matchJoueursJ1[$i][$indice]="<span class='perdant'>".$row1[0]." ".$row1[1]."<br>".$pointsJ1."".$tiraubutJ1."</span>";
+			$matchJoueursJ2[$i][$indice]="<span class='gagnant'>".$row1[2]." ".$row1[3]."<br>".$pointsJ2."".$tiraubutJ2."</span>";
+		} else {
+			if ($tiraubutJ1>$tiraubutJ2) {
+				$matchJoueursJ1[$i][$indice]="<span class='gagnant'>".$row1[0]." ".$row1[1]."<br>".$pointsJ1."".$tiraubutJ1."</span>";
+				$matchJoueursJ2[$i][$indice]="<span class='perdant'>".$row1[2]." ".$row1[3]."<br>".$pointsJ2."".$tiraubutJ2."</span>";
+			} else if ($tiraubutJ1<$tiraubutJ2) {
+				$matchJoueursJ1[$i][$indice]="<span class='perdant'>".$row1[0]." ".$row1[1]."<br>".$pointsJ1."".$tiraubutJ1."</span>";
+				$matchJoueursJ2[$i][$indice]="<span class='gagnant'>".$row1[2]." ".$row1[3]."<br>".$pointsJ2."".$tiraubutJ2."</span>";
+			} else {
+				$matchJoueursJ1[$i][$indice]=$row1[0]." ".$row1[1]."<br>".$pointsJ1."".$tiraubutJ1;
+				$matchJoueursJ2[$i][$indice]=$row1[2]." ".$row1[3]."<br>".$pointsJ2."".$tiraubutJ2;
+			}
+		}
+		$j=$j+1;
+		if ($j>$maxmatch){
+			$maxmatch=$j;
+		}
+		$tiraubutJ1="";
+		$tiraubutJ2="";
+	}
+		if (!isset($matchJoueursJ1[$i][$indice])) $nbcolonfusion=1;
+		echo "<th colspan=".$nbcolonfusion.">".$tour[$i-1][1]."</th>";
+	$i=$i+1;
+}
+echo "</tr>";
+$ligne=0;
+while ($ligne<$maxmatch){
+	$colonne=1;
+	
+	echo "<tr class=\"celluletableaucoupe\">";
+	while ($colonne<=$maxtour){
+		$rowspan = puissance(2,($colonne-1));
+		if ($ligne==0||$colonne==1){
+			$afficheTD=true;
+		}
+		else {
+			$afficheTD = (($ligne)%(puissance(2,($colonne-1)))==0);
+		}
+		if ($afficheTD){
+			if (isset($matchJoueursJ1[$colonne][$ligne])){
+				echo "<td rowspan=".$rowspan." width=\"10%\">".$matchJoueursJ1[$colonne][$ligne]."</td>";
+				echo "<td rowspan=".$rowspan." width=\"10%\">".$matchJoueursJ2[$colonne][$ligne]."</td>";
+				if ($colonne<$maxtour) 
+					$lignemax=($maxmatch/$rowspan)-1;
+			} else {
+				echo "<td rowspan=".$rowspan."></td>";
+			}
+		}
+		$colonne=$colonne+1;
+	}
+	echo "</tr>";
+	$ligne=$ligne+1;
+	}
+echo "</table>";
+	
+?>
+
+
+
+
+
